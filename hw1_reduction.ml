@@ -1,68 +1,6 @@
+open Hw1
 module M = Map.Make (String)
 module S = Set.Make (String)
-
-type lambda = Var of string | Abs of string * lambda | App of lambda * lambda;;
-
-let isSymbol ch = match ch with
-			 | '(' -> 1
-			 | ')' -> 1
-			 | ' ' -> 1
-			 | '\\' -> 1
-			 | '.' -> 1
-			 | _ -> 0;;
-let tail s = match s with
-			| [] -> []
-			| x::xs -> xs;;
-let head s = match s with
-			| [] -> ""
-			| x::xs -> x;;
-let tailS s = match s with	
-			| "" -> ""
-			| _ -> String.sub s 1 (String.length s - 1);;
-let rec break s n = match s with
-			| "" -> ("", "")
-			| _ -> let x = s.[0] in let xs = tailS s in 
-							if ((isSymbol x) = 1) then 
-								if n = 0 then 
-									((String.make 1 x), xs) 
-								else ("", (String.make 1 x)^xs) 
-							else let (a, b) = break xs (n + 1) in ((String.make 1 x)^a, b);;
-
-let rec di s = match s with
-						| "" -> [""]
-						| _ -> let (fst, snd) = break s 0 in 
-								List.filter (fun x -> x <> " " && x <> "") (List.append [fst] (di snd));;
-
-let temp = Var "x";;
-
-let rec parseAbs r f = match r with
-					| x::"."::xs -> let (a, b) = f xs 1 temp in (Abs (x, a), b)
-					| _ -> failwith "";;
-
-let rec parseTerm str f = match str with
-						| "("::xs -> let (l, left) = f xs 1 temp in (l, tail left)
-						| x::xs -> (Var x, xs)
-						| x -> (Var (head x), [""]);;
-
-let rec parseExpr str fst acc = let f a b= let ne = if fst = 1 then a else App (acc, a) in parseExpr b 0 ne in match str with
-						| [] -> (acc, [])
-						| ")"::xs -> (acc, str)
-						| "\\"::xs -> let (a, b) = parseAbs xs parseExpr in f a b
-						| _ -> let (a, b) = parseTerm str parseExpr in f a b;;
-
-
-let parse str = parseExpr (di str) 1 temp;;
-
-let lambda_of_string s = let (ans, _) = parse s in ans;;
-
-let rec string_of_lambda l = match l with
-						| (Var (s)) -> (" "^s^" ")
-						| App (a, b) -> ("("^(string_of_lambda a)^" "^(string_of_lambda b)^")")
-						| Abs (var, lam) -> ("(\\"^var^"."^(string_of_lambda lam)^")");;
-
-
-let print_the_same s = string_of_lambda (lambda_of_string s);;
-
 
 let rec alpha_eqv a b m = match a with
 								| Var (nA) -> (match b with 
@@ -80,17 +18,21 @@ let rec alpha_eqv a b m = match a with
 
 let is_alpha_equivalent a b = alpha_eqv a b M.empty
 
-let rec free_vars thS theta a locked = match theta with 
+let rec free_vars_impl a locked = match a with
+                                        | Var (n) -> if S.mem n locked then S.empty else S.singleton n
+					| App (o, t) -> S.union (free_vars_impl o locked) (free_vars_impl t locked)
+					| Abs (x, v) -> free_vars_impl v (S.add x locked)
+
+let free_vars_set a = free_vars_impl a S.empty
+
+let free_vars a = S.fold (fun x l -> x :: l) (free_vars_set a) []
+
+let rec free_to_subst_impl thS theta a locked = match theta with 
 					| Var (n) -> if a = n && (not (S.mem n locked)) then S.cardinal (S.inter locked thS) = 0 else true
-					| App (o, t) -> free_vars thS o a locked && (free_vars thS t a locked)
-					| Abs (n, e) -> free_vars thS e a (S.add n locked)
+					| App (o, t) -> free_to_subst_impl thS o a locked && (free_to_subst_impl thS t a locked)
+					| Abs (n, e) -> free_to_subst_impl thS e a (S.add n locked)
 
-let rec makeSet a = match a with
-					| Var (n) -> S.singleton n
-					| App (o, t) -> S.union (makeSet o) (makeSet t)
-					| Abs (_, _) -> S.empty
-
-let free_to_subst x theta a = free_vars (makeSet x) theta a S.empty
+let free_to_subst x theta a = free_to_subst_impl (free_vars_set x) theta a S.empty
 
 let rec is_normal_form a = match a with
                     | Var (_) -> true
