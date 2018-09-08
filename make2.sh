@@ -1,1 +1,2 @@
+./make1.sh
 ocamlc hw2_unify.mli hw2_unify.ml

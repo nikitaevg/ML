@@ -47,12 +47,12 @@ let rec subst x theta a = match theta with
                             | App (p, q) -> App ((subst x p a), (subst x q a))
 
 let counter = ref 0
-let next_name prev = counter := !counter + 1; "Prev" ^ prev ^ (string_of_int(!counter))
+let next_name() = counter := !counter + 1; "x" ^ (string_of_int(!counter))
 
 let rec rename_impl x m = match x with
                     | Var (n) -> if M.mem n m then Var (M.find n m) else x
                     | App (p, q) -> App (rename_impl p m, rename_impl q m)
-                    | Abs (n, t) -> let new_name = next_name n in Abs (new_name, rename_impl t (M.add n new_name m))
+                    | Abs (n, t) -> let new_name = next_name () in Abs (new_name, rename_impl t (M.add n new_name m))
 
 let rename x = rename_impl x M.empty
 
@@ -86,7 +86,7 @@ let rec subst_ptr x theta a = match !theta with
                             | PAbs (var', theta') -> if a <> var' then subst_ptr x theta' a
                             | PApp (p, q) -> (subst_ptr x p a); (subst_ptr x q a)
 
-let copy theta = to_ptr (from_ptr theta)
+let copy theta = to_ptr (rename (from_ptr theta))
 
 let rec reduce_impl theta = match !theta with
                     | PVar (_) -> false
@@ -106,3 +106,6 @@ let plam = to_ptr lam;;
 print_string (string_of_lambda lam);;
 print_string "\n";;
 print_string (string_of_lambda (reduce_to_normal_form lam));;
+let str = "(\\s.\\k.\\i.(((s ((s (k s)) ((s ((s (k s)) ((s (k k)) i))) (k ((s (k (s ((s (k s)) ((s (k (s (k (s ((s ((s ((s i) (k (k (k i))))) (k ((s (k k)) i)))) (k ((s ((s (k s)) ((s (k k)) i))) (k i))))))))) ((s ((s (k s)) ((s (k k)) ((s (k s)) ((s (k (s (k ((s ((s (k s)) ((s (k k)) ((s (k s)) ((s (k k)) i))))) (k ((s ((s (k s)) ((s (k k)) i))) (k i)))))))) ((s ((s (k s)) ((s (k k)) i))) (k i))))))) (k ((s (k k)) i)))))))) ((s (k k)) ((s ((s (k s)) ((s (k k)) i))) (k i)))))))) (k (k ((s ((s (k s)) ((s (k k)) i))) ((s ((s (k s)) ((s (k k)) i))) ((s ((s (k s)) ((s (k k)) i))) (k i))))))) ((s ((s ((s (k s)) ((s (k k)) i))) (k ((s i) i)))) ((s ((s (k s)) ((s (k k)) i))) (k ((s i) i))))) ((s ((s (k s)) ((s (k (s (k s)))) ((s ((s (k s)) ((s (k (s (k s)))) ((s (k (s (k k)))) ((s ((s (k s)) ((s (k k)) i))) (k ((s (k (s (k (s i))))) ((s (k (s (k k)))) ((s (k (s i))) ((s (k k)) i)))))))))) (k (k ((s (k k)) i))))))) (k (k (k i))))) (\\x.\\y.\\z.x z (y z)) (\\x.\\y.x) (\\x.x)";;
+let llam = lambda_of_string str;;
+let pllam = to_ptr llam;;

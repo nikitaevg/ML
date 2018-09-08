@@ -121,5 +121,3 @@ let rec string_of_lambda l = match l with
 
 
 let print_the_same s = string_of_lambda (lambda_of_string s);;
-
-
